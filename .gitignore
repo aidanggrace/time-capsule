@@ -1,0 +1,4 @@
+node_modules
+.next
+backend/go.sum
+.env
