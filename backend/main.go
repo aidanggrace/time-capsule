@@ -1,15 +1,24 @@
 package main
 
 import (
+	"log"
+	"os"
 	"time-capsule/models"
 
 	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
 )
 
 func main() {
-	dsn := "postgresql://postgres.ylpdfqxoawztrtqksnag:BzfmdfyLU6cUP2jv@aws-1-us-east-2.pooler.supabase.com:5432/postgres"
+
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	dsn := os.Getenv("DATABASE_URL")
 	db, _ := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 
 	// create table (migration)
