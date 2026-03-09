@@ -1,13 +1,43 @@
 package main
 
-import "github.com/gin-gonic/gin"
+import (
+	"log"
+	"os"
+	"time-capsule/models"
+
+	"github.com/gin-gonic/gin"
+	"github.com/joho/godotenv"
+	"gorm.io/driver/postgres"
+	"gorm.io/gorm"
+)
 
 func main() {
-	router := gin.Default()
-	router.GET("/ping", func(c *gin.Context) {
-		c.JSON(200, gin.H{
-			"message": "pong",
-		})
+
+	err := godotenv.Load()
+	if err != nil {
+		log.Fatal("Error loading .env file")
+	}
+
+	dsn := os.Getenv("DATABASE_URL")
+	db, _ := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+
+	// create table (migration)
+	db.AutoMigrate(&models.Capsule{})
+
+	r := gin.Default()
+
+	// allow frontend to talk to backend
+	r.Use(func(c *gin.Context) {
+		c.Writer.Header().Set("Access-Control-Allow-Origin", "http://localhost:3000")
+		c.Next()
 	})
-	router.Run() // listens on 0.0.0.0:8080
+
+	// route
+	r.GET("/capsules", func(c *gin.Context) {
+		var capsules []models.Capsule
+		db.Find(&capsules) // get all records
+		c.JSON(200, capsules)
+	})
+
+	r.Run(":8080")
 }
