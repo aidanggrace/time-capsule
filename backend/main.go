@@ -1,14 +1,15 @@
 package main
 
 import (
+	"context"
 	"log"
 	"os"
-	"time-capsule/models"
+	"time-capsule/db"
 
 	"github.com/gin-gonic/gin"
+	"github.com/jackc/pgx/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/joho/godotenv"
-	"gorm.io/driver/postgres"
-	"gorm.io/gorm"
 )
 
 func main() {
@@ -19,10 +20,20 @@ func main() {
 	}
 
 	dsn := os.Getenv("DATABASE_URL")
-	db, _ := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	config, err := pgxpool.ParseConfig(dsn)
+	if err != nil {
+		log.Fatalf("Config error: %v", err)
+	}
 
-	// create table (migration)
-	db.AutoMigrate(&models.Capsule{})
+	config.ConnConfig.DefaultQueryExecMode = pgx.QueryExecModeSimpleProtocol
+
+	pool, err := pgxpool.NewWithConfig(context.Background(), config)
+	if err != nil {
+		log.Fatalf("Unable to connect to database: %v\n", err)
+	}
+	defer pool.Close()
+
+	queries := db.New(pool)
 
 	r := gin.Default()
 
@@ -34,8 +45,11 @@ func main() {
 
 	// route
 	r.GET("/capsules", func(c *gin.Context) {
-		var capsules []models.Capsule
-		db.Find(&capsules) // get all records
+		capsules, err := queries.ListCapsules(c)
+		if err != nil {
+			c.JSON(500, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(200, capsules)
 	})
 
