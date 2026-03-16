@@ -9,12 +9,17 @@ export default function Home() {
 
   useEffect(() => {
     const getCapsules = async () => {
-      const res = await fetch(`${API_URL}/capsules`)
+      const res = await fetch(`${API_URL}/capsules`, { credentials: "include" })
+      if (res.status === 401) {
+        window.location.href = "/login"
+        return
+      }
       const data = await res.json()
       setCapsules(data)
     }
     getCapsules()
   }, [])
+
 
   return (
     <div>
