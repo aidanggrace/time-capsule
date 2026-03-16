@@ -15,12 +15,13 @@ export default function Login() {
       const res = await fetch(`${API_URL}/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({ email, password }),
       })
       
       if (res.ok) {
-        // Since we use HttpOnly cookies, we don't need to store token in localStorage
-        // Just redirect
+
+        // redirect
         router.push("/")
       } else {
         alert("Login failed")

@@ -12,80 +12,73 @@ import (
 	"golang.org/x/crypto/bcrypt"
 )
 
-type RegisterRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required,min=6"`
+// Simple struct for both login and register
+type AuthInput struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
 }
 
-type LoginRequest struct {
-	Email    string `json:"email" binding:"required,email"`
-	Password string `json:"password" binding:"required"`
-}
-
-var jwtSecret = []byte(os.Getenv("JWT_SECRET"))
+var secretKey = []byte(os.Getenv("JWT_SECRET"))
 
 func Register(queries *db.Queries) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var req RegisterRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		var input AuthInput
+		if err := c.BindJSON(&input); err != nil {
+			c.JSON(400, gin.H{"error": "Bad request"})
 			return
 		}
 
-		hashedPassword, err := bcrypt.GenerateFromPassword([]byte(req.Password), bcrypt.DefaultCost)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to hash password"})
-			return
-		}
+		// hash the password
+		hashed, _ := bcrypt.GenerateFromPassword([]byte(input.Password), 14)
 
-		user, err := queries.CreateUser(context.Background(), db.CreateUserParams{
-			Email:        req.Email,
-			PasswordHash: string(hashedPassword),
+		_, err := queries.CreateUser(context.Background(), db.CreateUserParams{
+			Email:        input.Email,
+			PasswordHash: string(hashed),
 		})
+
 		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create user"})
+			c.JSON(500, gin.H{"error": "Could not create user"})
 			return
 		}
 
-		c.JSON(http.StatusCreated, gin.H{"id": user.ID, "email": user.Email})
+		c.JSON(200, gin.H{"message": "User created!"})
 	}
 }
 
 func Login(queries *db.Queries) gin.HandlerFunc {
 	return func(c *gin.Context) {
-		var req LoginRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		var input AuthInput
+		if err := c.BindJSON(&input); err != nil {
+			c.JSON(400, gin.H{"error": "Bad request"})
 			return
 		}
 
-		user, err := queries.GetUserByEmail(context.Background(), req.Email)
+		user, err := queries.GetUserByEmail(context.Background(), input.Email)
 		if err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+			c.JSON(401, gin.H{"error": "User not found"})
 			return
 		}
 
-		if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)); err != nil {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid email or password"})
+		// check password
+		err = bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(input.Password))
+		if err != nil {
+			c.JSON(401, gin.H{"error": "Wrong password"})
 			return
 		}
 
+		// create token
 		token := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 			"sub": user.ID,
-			"exp": time.Now().Add(time.Hour * 72).Unix(),
+			"exp": time.Now().Add(time.Hour * 24).Unix(),
 		})
 
-		tokenString, err := token.SignedString(jwtSecret)
-		if err != nil {
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to generate token"})
-			return
-		}
+		tokenString, _ := token.SignedString(secretKey)
 
-		// Set cookie
+		// send cookie
 		c.SetSameSite(http.SameSiteLaxMode)
-		c.SetCookie("Authorization", tokenString, 3600*72, "/", "", false, true)
+		c.SetCookie("Authorization", tokenString, 0, "/", "", false, true)
 
-		c.JSON(http.StatusOK, gin.H{"message": "Logged in successfully"})
+		c.JSON(200, gin.H{"message": "Logged in!"})
 	}
 }
 
@@ -93,25 +86,21 @@ func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tokenString, err := c.Cookie("Authorization")
 		if err != nil {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+			c.AbortWithStatus(401)
 			return
 		}
 
-		token, err := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
-			return jwtSecret, nil
+		token, _ := jwt.Parse(tokenString, func(token *jwt.Token) (interface{}, error) {
+			return secretKey, nil
 		})
 
-		if err != nil || !token.Valid {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
+		if token == nil || !token.Valid {
+			c.AbortWithStatus(401)
 			return
 		}
 
-		if claims, ok := token.Claims.(jwt.MapClaims); ok {
-			c.Set("userID", claims["sub"])
-		} else {
-			c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "Unauthorized"})
-			return
-		}
+		claims, _ := token.Claims.(jwt.MapClaims)
+		c.Set("userID", claims["sub"])
 
 		c.Next()
 	}

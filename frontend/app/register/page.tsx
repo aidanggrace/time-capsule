@@ -15,10 +15,12 @@ export default function Register() {
       const res = await fetch(`${API_URL}/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include", // Just in case we auto-login later
         body: JSON.stringify({ email, password }),
       })
       
       if (res.ok) {
+
         router.push("/login")
       } else {
         alert("Registration failed")

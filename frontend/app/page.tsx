@@ -24,14 +24,19 @@ export default function Home() {
   return (
     <div>
       <h1>My Capsules</h1>
-      {capsules.map((capsule) => (
-        <div key={capsule.id} className="capsule">
-          <p>Message: {capsule.message}</p>
-          <p>Unlocks: {capsule.unlock_at}</p>
-          <p>Sends to: {capsule.recipient_email}</p>
-        </div>
-      ))}
+      {capsules && capsules.length > 0 ? (
+        capsules.map((capsule) => (
+          <div key={capsule.id} className="capsule">
+            <p>Message: {capsule.message}</p>
+            <p>Unlocks: {capsule.unlock_at}</p>
+            <p>Sends to: {capsule.recipient_email}</p>
+          </div>
+        ))
+      ) : (
+        <p>make a capsule bruh</p>
+      )}
     </div>
   )
+
 }
 
