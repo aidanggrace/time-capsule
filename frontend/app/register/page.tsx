@@ -1,8 +1,7 @@
 "use client"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-
-const API_URL = "http://localhost:8080"
+import { supabase } from "@/lib/supabase"
 
 export default function Register() {
   const [email, setEmail] = useState("")
@@ -11,24 +10,12 @@ export default function Register() {
 
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault()
-    try {
-      const res = await fetch(`${API_URL}/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include", // Just in case we auto-login later
-        body: JSON.stringify({ email, password }),
-      })
-      
-      if (res.ok) {
-
-        router.push("/login")
-      } else {
-        alert("Registration failed")
-      }
-    } catch (err) {
-      console.error(err)
-      alert("Error registering")
+    const { error } = await supabase.auth.signUp({ email, password })
+    if (error) {
+      alert(error.message)
+      return
     }
+    router.push("/")
   }
 
   return (

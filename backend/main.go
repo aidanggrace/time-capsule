@@ -54,9 +54,6 @@ func main() {
 		c.Next()
 	})
 
-	r.POST("/register", Register(queries))
-	r.POST("/login", Login(queries))
-
 	protected := r.Group("/")
 	protected.Use(AuthMiddleware())
 	{
@@ -66,7 +63,6 @@ func main() {
 				c.JSON(401, gin.H{"error": "Unauthorized"})
 				return
 			}
-			// Determine ownerID as string (users.ID is int, capsules.owner_id is text)
 			ownerID := fmt.Sprintf("%v", userID)
 
 			capsules, err := queries.ListCapsules(c, ownerID)
