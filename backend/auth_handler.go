@@ -9,8 +9,6 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 )
 
-// AuthMiddleware validates a Supabase-issued JWT from the Authorization: Bearer header.
-// Set SUPABASE_JWT_SECRET in your .env to the JWT secret from your Supabase project settings.
 func AuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		authHeader := c.GetHeader("Authorization")

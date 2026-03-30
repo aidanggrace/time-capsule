@@ -1,8 +1,7 @@
 "use client"
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-
-const API_URL = "http://localhost:8080"
+import { supabase } from "@/lib/supabase"
 
 export default function Login() {
   const [email, setEmail] = useState("")
@@ -11,25 +10,12 @@ export default function Login() {
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
-    try {
-      const res = await fetch(`${API_URL}/login`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, password }),
-      })
-      
-      if (res.ok) {
-
-        // redirect
-        router.push("/")
-      } else {
-        alert("Login failed")
-      }
-    } catch (err) {
-      console.error(err)
-      alert("Error logging in")
+    const { error } = await supabase.auth.signInWithPassword({ email, password })
+    if (error) {
+      alert(error.message)
+      return
     }
+    router.push("/")
   }
 
   return (
