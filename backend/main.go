@@ -37,6 +37,8 @@ func main() {
 
 	queries := db.New(pool)
 
+	InitJWKS()
+
 	r := gin.Default()
 
 	// allow frontend to talk to backend
@@ -56,8 +58,10 @@ func main() {
 
 	protected := r.Group("/")
 	protected.Use(AuthMiddleware())
+	fmt.Print("HEY")
 	{
 		protected.GET("/capsules", func(c *gin.Context) {
+			fmt.Println("test 1 worked")
 			userID, exists := c.Get("userID")
 			if !exists {
 				c.JSON(401, gin.H{"error": "Unauthorized"})
