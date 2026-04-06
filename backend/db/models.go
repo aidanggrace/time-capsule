@@ -13,6 +13,7 @@ import (
 type Capsule struct {
 	ID             int32              `json:"id"`
 	OwnerID        string             `json:"owner_id"`
+	SenderEmail    string             `json:"sender_email"`
 	RecipientEmail string             `json:"recipient_email"`
 	Message        string             `json:"message"`
 	MediaUrl       string             `json:"media_url"`
@@ -21,4 +22,12 @@ type Capsule struct {
 	CreatedAt      time.Time          `json:"created_at"`
 	UpdatedAt      time.Time          `json:"updated_at"`
 	DeletedAt      pgtype.Timestamptz `json:"deleted_at"`
+}
+
+type User struct {
+	ID           int32     `json:"id"`
+	Email        string    `json:"email"`
+	PasswordHash string    `json:"password_hash"`
+	CreatedAt    time.Time `json:"created_at"`
+	UpdatedAt    time.Time `json:"updated_at"`
 }
