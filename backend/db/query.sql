@@ -3,6 +3,10 @@ SELECT * FROM capsules
 WHERE owner_id = $1 AND deleted_at IS NULL
 ORDER BY created_at DESC;
 
+-- name: ListReceivedCapsules :many
+SELECT * FROM capsules
+WHERE recipient_email = $1 AND deleted_at IS NULL
+ORDER BY created_at DESC;
 
 -- name: CreateCapsule :one
 INSERT INTO capsules (
