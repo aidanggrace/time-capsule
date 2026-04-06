@@ -13,6 +13,7 @@ import (
 type Capsule struct {
 	ID             int32              `json:"id"`
 	OwnerID        string             `json:"owner_id"`
+	SenderEmail    string             `json:"sender_email"`
 	RecipientEmail string             `json:"recipient_email"`
 	Message        string             `json:"message"`
 	MediaUrl       string             `json:"media_url"`

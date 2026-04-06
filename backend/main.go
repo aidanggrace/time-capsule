@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"time"
 	"time-capsule/db"
 
 	"github.com/gin-gonic/gin"
@@ -36,6 +37,8 @@ func main() {
 	defer pool.Close()
 
 	queries := db.New(pool)
+
+	InitJWKS()
 
 	r := gin.Default()
 
@@ -71,6 +74,58 @@ func main() {
 				return
 			}
 			c.JSON(200, capsules)
+		})
+
+		protected.GET("/received-capsules", func(c *gin.Context) {
+			email, _ := c.Get("userEmail")
+			emailStr := fmt.Sprintf("%v", email)
+
+			capsules, err := queries.ListReceivedCapsules(c, emailStr)
+			if err != nil {
+				fmt.Println("received-capsules error:", err)
+				c.JSON(500, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(200, capsules)
+		})
+
+		protected.POST("/capsules", func(c *gin.Context) {
+			userID, exists := c.Get("userID")
+			if !exists {
+				c.JSON(401, gin.H{"error": "Unauthorized"})
+				return
+			}
+
+			var input struct {
+				RecipientEmail string `json:"recipient_email"`
+				Message        string `json:"message"`
+				UnlockAt       string `json:"unlock_at"`
+			}
+			if err := c.BindJSON(&input); err != nil {
+				c.JSON(400, gin.H{"error": "Bad request"})
+				return
+			}
+
+			unlockTime, err := time.Parse(time.RFC3339, input.UnlockAt)
+			if err != nil {
+				c.JSON(400, gin.H{"error": "Invalid date format"})
+				return
+			}
+
+			senderEmail, _ := c.Get("userEmail")
+			capsule, err := queries.CreateCapsule(c, db.CreateCapsuleParams{
+				OwnerID:        fmt.Sprintf("%v", userID),
+				SenderEmail:    fmt.Sprintf("%v", senderEmail),
+				RecipientEmail: input.RecipientEmail,
+				Message:        input.Message,
+				MediaUrl:       "",
+				UnlockAt:       unlockTime,
+			})
+			if err != nil {
+				c.JSON(500, gin.H{"error": err.Error()})
+				return
+			}
+			c.JSON(201, capsule)
 		})
 	}
 

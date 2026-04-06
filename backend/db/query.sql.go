@@ -13,18 +13,20 @@ import (
 const createCapsule = `-- name: CreateCapsule :one
 INSERT INTO capsules (
   owner_id,
+  sender_email,
   recipient_email,
   message,
   media_url,
   unlock_at
 ) VALUES (
-  $1, $2, $3, $4, $5
+  $1, $2, $3, $4, $5, $6
 )
-RETURNING id, owner_id, recipient_email, message, media_url, unlock_at, delivered_at, created_at, updated_at, deleted_at
+RETURNING id, owner_id, sender_email, recipient_email, message, media_url, unlock_at, delivered_at, created_at, updated_at, deleted_at
 `
 
 type CreateCapsuleParams struct {
 	OwnerID        string    `json:"owner_id"`
+	SenderEmail    string    `json:"sender_email"`
 	RecipientEmail string    `json:"recipient_email"`
 	Message        string    `json:"message"`
 	MediaUrl       string    `json:"media_url"`
@@ -34,6 +36,7 @@ type CreateCapsuleParams struct {
 func (q *Queries) CreateCapsule(ctx context.Context, arg CreateCapsuleParams) (Capsule, error) {
 	row := q.db.QueryRow(ctx, createCapsule,
 		arg.OwnerID,
+		arg.SenderEmail,
 		arg.RecipientEmail,
 		arg.Message,
 		arg.MediaUrl,
@@ -43,6 +46,7 @@ func (q *Queries) CreateCapsule(ctx context.Context, arg CreateCapsuleParams) (C
 	err := row.Scan(
 		&i.ID,
 		&i.OwnerID,
+		&i.SenderEmail,
 		&i.RecipientEmail,
 		&i.Message,
 		&i.MediaUrl,
@@ -84,7 +88,7 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) (User, e
 }
 
 const getCapsule = `-- name: GetCapsule :one
-SELECT id, owner_id, recipient_email, message, media_url, unlock_at, delivered_at, created_at, updated_at, deleted_at FROM capsules
+SELECT id, owner_id, sender_email, recipient_email, message, media_url, unlock_at, delivered_at, created_at, updated_at, deleted_at FROM capsules
 WHERE id = $1 AND deleted_at IS NULL LIMIT 1
 `
 
@@ -94,6 +98,7 @@ func (q *Queries) GetCapsule(ctx context.Context, id int32) (Capsule, error) {
 	err := row.Scan(
 		&i.ID,
 		&i.OwnerID,
+		&i.SenderEmail,
 		&i.RecipientEmail,
 		&i.Message,
 		&i.MediaUrl,
@@ -143,7 +148,7 @@ func (q *Queries) GetUserByID(ctx context.Context, id int32) (User, error) {
 }
 
 const listCapsules = `-- name: ListCapsules :many
-SELECT id, owner_id, recipient_email, message, media_url, unlock_at, delivered_at, created_at, updated_at, deleted_at FROM capsules
+SELECT id, owner_id, sender_email, recipient_email, message, media_url, unlock_at, delivered_at, created_at, updated_at, deleted_at FROM capsules
 WHERE owner_id = $1 AND deleted_at IS NULL
 ORDER BY created_at DESC
 `
@@ -160,6 +165,45 @@ func (q *Queries) ListCapsules(ctx context.Context, ownerID string) ([]Capsule, 
 		if err := rows.Scan(
 			&i.ID,
 			&i.OwnerID,
+			&i.SenderEmail,
+			&i.RecipientEmail,
+			&i.Message,
+			&i.MediaUrl,
+			&i.UnlockAt,
+			&i.DeliveredAt,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+			&i.DeletedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listReceivedCapsules = `-- name: ListReceivedCapsules :many
+SELECT id, owner_id, sender_email, recipient_email, message, media_url, unlock_at, delivered_at, created_at, updated_at, deleted_at FROM capsules
+WHERE recipient_email = $1 AND deleted_at IS NULL
+ORDER BY created_at DESC
+`
+
+func (q *Queries) ListReceivedCapsules(ctx context.Context, recipientEmail string) ([]Capsule, error) {
+	rows, err := q.db.Query(ctx, listReceivedCapsules, recipientEmail)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Capsule
+	for rows.Next() {
+		var i Capsule
+		if err := rows.Scan(
+			&i.ID,
+			&i.OwnerID,
+			&i.SenderEmail,
 			&i.RecipientEmail,
 			&i.Message,
 			&i.MediaUrl,
